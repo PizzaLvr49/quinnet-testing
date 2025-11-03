@@ -155,7 +155,7 @@ fn update_state(mode: Res<Mode>, mut query: Query<&mut MyComponent>) {
 
     for mut component in query.iter_mut() {
         component.num += 1;
-        println!("{:?}", component);
+        info!("{:?}", component);
     }
 }
 
@@ -165,7 +165,7 @@ fn log_state(mode: Res<Mode>, query: Query<&MyComponent>) {
     }
 
     for component in query.iter() {
-        println!("{:?}", component);
+        info!("{:?}", component);
     }
 }
 
