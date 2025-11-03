@@ -52,6 +52,14 @@ fn main() {
     let mut app = App::new();
     app.insert_resource(mode.clone());
 
+    configure_plugins(&mut app, &mode);
+    configure_replication(&mut app);
+    configure_systems(&mut app);
+
+    app.run();
+}
+
+fn configure_plugins(app: &mut App, mode: &Mode) {
     if matches!(mode, Mode::Server { .. }) {
         app.add_plugins(MinimalPlugins)
             .add_plugins(bevy::log::LogPlugin::default())
@@ -64,25 +72,26 @@ fn main() {
         RepliconPlugins,
         RepliconQuinnetPlugins,
         PanicHandlerBuilder::default().build(),
-    ))
-    .replicate::<MyComponent>()
-    .add_client_event::<ChatMessage>(Channel::Ordered)
-    .add_systems(Startup, setup)
-    .add_systems(
-        Update,
-        (send_message_system, log_state).run_if(is_client_fn),
-    )
-    .add_systems(
-        Update,
-        update_state.run_if(on_timer(Duration::from_secs(2))),
-    )
-    .add_observer(receive_message_observer)
-    .add_systems(Last, disconnect_observer)
-    .run();
+    ));
 }
 
-fn is_client_fn(mode: Res<Mode>) -> bool {
-    matches!(*mode, Mode::Client { .. } | Mode::Local)
+fn configure_replication(app: &mut App) {
+    app.replicate::<MyComponent>()
+        .add_client_event::<ChatMessage>(Channel::Ordered);
+}
+
+fn configure_systems(app: &mut App) {
+    app.add_systems(Startup, setup)
+        .add_systems(
+            Update,
+            (
+                update_state.run_if(on_timer(Duration::from_secs(2))),
+                log_state.run_if(on_timer(Duration::from_secs_f64(0.5))),
+                send_message_system,
+            ),
+        )
+        .add_observer(receive_message_observer)
+        .add_systems(Last, disconnect_observer);
 }
 
 fn setup(
@@ -95,19 +104,19 @@ fn setup(
     info!("Starting {:?}", *mode);
 
     match &*mode {
-        Mode::Server { port } => start_server(*port, &channels, &mut server, commands),
-        Mode::Client { ip, port } => start_client(*ip, *port, &channels, &mut client),
+        Mode::Server { port } => setup_server(*port, &channels, &mut server, commands),
+        Mode::Client { ip, port } => setup_client(*ip, *port, &channels, &mut client, commands),
         Mode::Local => {
             info!("Local mode: skipping networking");
-            spawn_synced(commands);
+            spawn_game_entity(commands);
         }
     }
 }
 
-fn start_server(
+fn setup_server(
     port: u16,
-    channels: &Res<RepliconChannels>,
-    server: &mut ResMut<QuinnetServer>,
+    channels: &RepliconChannels,
+    server: &mut QuinnetServer,
     commands: Commands,
 ) {
     server
@@ -122,14 +131,15 @@ fn start_server(
         })
         .unwrap();
 
-    spawn_synced(commands);
+    spawn_game_entity(commands);
 }
 
-fn start_client(
+fn setup_client(
     ip: IpAddr,
     port: u16,
-    channels: &Res<RepliconChannels>,
-    client: &mut ResMut<QuinnetClient>,
+    channels: &RepliconChannels,
+    client: &mut QuinnetClient,
+    _commands: Commands,
 ) {
     client
         .open_connection(ClientConnectionConfiguration {
@@ -144,28 +154,44 @@ fn start_client(
     info!("Client connecting to [{ip}]:{port}");
 }
 
-fn spawn_synced(mut commands: Commands) {
+fn spawn_game_entity(mut commands: Commands) {
     commands.spawn(MyComponent { num: 22 });
 }
 
-fn update_state(mode: Res<Mode>, mut query: Query<&mut MyComponent>) {
-    if is_client_fn(mode) {
+fn update_state(
+    mode: Res<Mode>,
+    mut query: Query<&mut MyComponent>,
+    server: Option<Res<QuinnetServer>>,
+) {
+    let has_authority = match *mode {
+        Mode::Server { .. } => server.as_ref().map_or(false, |s| s.is_listening()),
+        Mode::Local => true,
+        Mode::Client { .. } => false,
+    };
+
+    if !has_authority {
         return;
     }
 
     for mut component in query.iter_mut() {
         component.num += 1;
-        info!("{:?}", component);
+        info!("[Authority] Updated state: {:?}", component);
     }
 }
 
 fn log_state(mode: Res<Mode>, query: Query<&MyComponent>) {
-    if !is_client_fn(mode) {
-        return;
-    }
-
-    for component in query.iter() {
-        info!("{:?}", component);
+    match *mode {
+        Mode::Client { .. } => {
+            for component in query.iter() {
+                info!("[Client] Replicated state: {:?}", component);
+            }
+        }
+        Mode::Local => {
+            for component in query.iter() {
+                info!("[Local] State: {:?}", component);
+            }
+        }
+        Mode::Server { .. } => {}
     }
 }
 
@@ -175,27 +201,34 @@ fn send_message_system(
     time: Res<Time>,
     mut timer: Local<Option<Timer>>,
 ) {
-    if !matches!(*mode, Mode::Client { .. } | Mode::Local) {
+    let is_client_or_local = matches!(*mode, Mode::Client { .. } | Mode::Local);
+    if !is_client_or_local {
         return;
     }
 
     let timer = timer.get_or_insert_with(|| Timer::from_seconds(2.0, TimerMode::Repeating));
+
     if timer.tick(time.delta()).just_finished() {
         let message = ChatMessage {
-            text: format!("Hello from client/local at {:.2}", time.elapsed_secs()),
+            text: format!("Hello at {:.2}", time.elapsed_secs()),
         };
 
-        if !matches!(*mode, Mode::Local) {
-            commands.client_trigger(message.clone());
+        match *mode {
+            Mode::Client { .. } => {
+                commands.client_trigger(message.clone());
+                info!("[Client] Sent message: {:?}", message);
+            }
+            Mode::Local => {
+                info!("[Local] Message: {:?}", message);
+            }
+            _ => {}
         }
-
-        info!("Message: {:?}", message);
     }
 }
 
 fn receive_message_observer(trigger: On<FromClient<ChatMessage>>) {
     info!(
-        "Server received from {:?}: {:?}",
+        "[Server] Received from client {:?}: {:?}",
         trigger.client_id, trigger.message
     );
 }
@@ -208,24 +241,27 @@ fn disconnect_observer(
 ) {
     for _event in exit_events.read() {
         match *mode {
-            Mode::Client { .. } => {
-                info!("Disconnecting all client connections...");
-                let connection_ids: Vec<u64> = client.connections().map(|(id, _)| *id).collect();
-                for connection_id in connection_ids {
-                    if let Err(e) = client.close_connection(connection_id) {
-                        warn!("Failed to close connection {}: {:?}", connection_id, e);
-                    }
-                }
-            }
-            Mode::Server { .. } => {
-                info!("Shutting down server endpoint...");
-                if let Err(e) = server.stop_endpoint() {
-                    warn!("Failed to stop endpoint: {:?}", e);
-                }
-            }
-            Mode::Local => {
-                info!("Local mode: no networking to disconnect");
-            }
+            Mode::Client { .. } => disconnect_client(&mut client),
+            Mode::Server { .. } => shutdown_server(&mut server),
+            Mode::Local => info!("[Local] Shutting down - no networking to clean up"),
         }
+    }
+}
+
+fn disconnect_client(client: &mut QuinnetClient) {
+    info!("[Client] Disconnecting all connections...");
+    let connection_ids: Vec<u64> = client.connections().map(|(id, _)| *id).collect();
+
+    for connection_id in connection_ids {
+        if let Err(e) = client.close_connection(connection_id) {
+            warn!("Failed to close connection {}: {:?}", connection_id, e);
+        }
+    }
+}
+
+fn shutdown_server(server: &mut QuinnetServer) {
+    info!("[Server] Shutting down endpoint...");
+    if let Err(e) = server.stop_endpoint() {
+        warn!("Failed to stop endpoint: {:?}", e);
     }
 }
