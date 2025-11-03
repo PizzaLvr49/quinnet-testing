@@ -4,8 +4,27 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-bevy_replicon = { version = "0.36", default-features = false }
+bevy = "0.17"
+bevy-panic-handler = "6.0.0"
+bevy_asset_loader = "0.23.0"
+bevy_enhanced_input = "0.19.2"
 bevy_quinnet = { version = "0.19.0", default-features = false }
-bevy = { version = "0.17", default-features = false, features = ["bevy_log"] }
+bevy_replicon = "0.36"
 bevy_replicon_quinnet = "0.15.0"
+bevy_rand = { version = "0.12.1", features = ["wyrand"] }
+rand = "0.9.2"
 clap = { version = "4.5.51", features = ["derive"] }
+serde = { version = "1.0.228", features = ["derive"] }
+
+[features]
+default = []
+dev = ["bevy/dynamic_linking"]
+
+[profile.dev.package."*"]
+opt-level = 3
+
+[profile.release]
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+strip = "symbols"
