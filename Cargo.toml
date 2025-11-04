@@ -6,7 +6,7 @@ edition = "2024"
 [dependencies]
 bevy = { version = "0.17", features = ["serialize"] }
 bevy-panic-handler = "6.0.0"
-bevy_asset_loader = "0.23.0"
+bevy_asset_loader = "0.24.0-rc.1"
 bevy_enhanced_input = "0.19.2"
 bevy_quinnet = { version = "0.19.0", default-features = false }
 bevy_replicon = "0.36"
