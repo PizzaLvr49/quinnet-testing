@@ -1,15 +1,11 @@
 use bevy::{prelude::*, state::app::StatesPlugin};
-use bevy_enhanced_input::{
-    EnhancedInputPlugin,
-    action::Action,
-    actions,
-    prelude::{Axial, Bindings, Cardinal, DeadZone, Fire, InputAction, SmoothNudge},
-};
+use bevy_enhanced_input::EnhancedInputPlugin;
 use bevy_panic_handler::PanicHandlerBuilder;
 use bevy_quinnet::{
     client::{
         ClientConnectionConfiguration, ClientConnectionConfigurationDefaultables, QuinnetClient,
-        certificate::CertificateVerificationMode, connection::ClientAddrConfiguration,
+        certificate::CertificateVerificationMode,
+        connection::{ClientAddrConfiguration, ConnectionEvent},
     },
     server::{
         EndpointAddrConfiguration, QuinnetServer, ServerEndpointConfiguration,
@@ -38,24 +34,8 @@ enum Mode {
     },
 }
 
-#[derive(Debug, Component, Serialize, Deserialize, Clone)]
-#[require(Replicated)]
-struct Player {
-    id: u64,
-    position: Vec2,
-}
-
-#[derive(Debug, Component)]
-struct LocalPlayer;
-
-#[derive(Event, Serialize, Deserialize, Clone, Copy)]
-struct PositionUpdate {
-    position: Vec2,
-}
-
-#[derive(InputAction)]
-#[action_output(Vec2)]
-struct PlayerMovement;
+#[derive(Event, Serialize, Deserialize)]
+struct YourClientId(u64);
 
 fn main() {
     let mode = Mode::try_parse().unwrap_or_default();
@@ -84,23 +64,32 @@ fn configure_plugins(app: &mut App, mode: &Mode) {
 }
 
 fn configure_replication(app: &mut App) {
-    app.replicate::<Player>();
-    app.add_client_event::<PositionUpdate>(Channel::Ordered);
+    app.add_server_event::<YourClientId>(Channel::Ordered);
 }
 
 fn configure_systems(app: &mut App) {
-    // Startup / Last as before
     app.add_systems(Startup, setup);
+    app.add_systems(Update, new_connection);
     app.add_systems(Last, disconnect_observer);
 
-    app.add_systems(Update, handle_client_connections);
-    app.add_systems(Update, handle_client_disconnections);
-    app.add_systems(Update, mark_local_player);
-    app.add_systems(Update, client_update_visual_positions);
+    app.add_observer(recieve_id);
+}
 
-    app.add_observer(new_client);
-    app.add_observer(server_handle_position_updates);
-    app.add_observer(client_handle_movement);
+fn new_connection(
+    query: Query<(Entity, &NetworkId), Added<AuthorizedClient>>,
+    mut commands: Commands,
+) {
+    for (entity, client) in query.iter() {
+        info!("New Client: {:?}", client);
+        commands.server_trigger(ToClients {
+            mode: SendMode::Direct(ClientId::Client(entity)),
+            message: YourClientId(client.get()),
+        });
+    }
+}
+
+fn recieve_id(id: On<YourClientId>) {
+    info!("Client Id is: {}", id.0);
 }
 
 fn setup(
@@ -137,53 +126,6 @@ fn setup_server(port: u16, channels: &RepliconChannels, server: &mut QuinnetServ
     info!("Server started on port {}", port);
 }
 
-fn new_client(
-    trigger: On<Add, AuthorizedClient>,
-    mut commands: Commands,
-    query: Query<&NetworkId>,
-) {
-    if let Ok(network_id) = query.get(trigger.entity) {
-        let player_id = network_id.get();
-        info!("New client authorized with NetworkId: {:?}", player_id);
-
-        commands.spawn(Player {
-            id: player_id,
-            position: Vec2::ZERO,
-        });
-    } else {
-        warn!("Client authorized but no NetworkId found!");
-    }
-}
-
-fn handle_client_connections(query: Query<(Entity, &NetworkId), Added<ConnectedClient>>) {
-    for (entity, network_id) in &query {
-        info!(
-            "Client connected - Entity: {:?}, NetworkId: {:?}",
-            entity,
-            network_id.get()
-        );
-    }
-}
-
-fn handle_client_disconnections(
-    mut removed: RemovedComponents<ConnectedClient>,
-    network_ids: Query<&NetworkId>,
-    mut commands: Commands,
-) {
-    for entity in removed.read() {
-        if let Ok(network_id) = network_ids.get(entity) {
-            info!(
-                "Client disconnected - Entity: {:?}, NetworkId: {:?}",
-                entity,
-                network_id.get()
-            );
-        } else {
-            info!("Client disconnected - Entity: {:?}", entity);
-        }
-        commands.entity(entity).despawn();
-    }
-}
-
 fn setup_client(
     ip: IpAddr,
     port: u16,
@@ -204,116 +146,6 @@ fn setup_client(
     info!("Client connecting to [{ip}]:{port}");
 
     commands.spawn(Camera2d);
-}
-
-fn mark_local_player(
-    mut commands: Commands,
-    client: Res<QuinnetClient>,
-    new_players: Query<(Entity, &Player), (Added<Player>, Without<LocalPlayer>)>,
-) {
-    if let Some((_connection_id, connection)) = client.connections().next() {
-        if let Some(client_id) = connection.client_id() {
-            for (entity, player) in &new_players {
-                if player.id == client_id {
-                    info!(
-                        "Marking {:?} as LocalPlayer (client_id: {})",
-                        entity, client_id
-                    );
-                    commands.entity(entity).insert((
-                        LocalPlayer,
-                        actions!(
-                            LocalPlayer[(
-                                Action::<PlayerMovement>::new(),
-                                DeadZone::default(),
-                                SmoothNudge::new(32.0),
-                                Bindings::spawn((
-                                    Cardinal::wasd_keys(),
-                                    Axial::left_stick(),
-                                    Cardinal::arrows(),
-                                )),
-                            )]
-                        ),
-                    ));
-                }
-            }
-        }
-    }
-}
-
-// Client: Handle movement locally and send position to server
-fn client_handle_movement(
-    movement: On<Fire<PlayerMovement>>,
-    mut local_player: Query<&mut Player, With<LocalPlayer>>,
-    mut commands: Commands,
-    time: Res<Time>,
-) {
-    const MOVE_SPEED: f32 = 300.0;
-
-    let Ok(mut player) = local_player.single_mut() else {
-        return;
-    };
-
-    let movement_delta = movement.value.normalize_or_zero() * MOVE_SPEED * time.delta_secs();
-    player.position += movement_delta;
-
-    commands.client_trigger(PositionUpdate {
-        position: player.position,
-    });
-}
-
-// Server: Receive position updates from clients and update their Player
-fn server_handle_position_updates(
-    trigger: On<FromClient<PositionUpdate>>,
-    mut players: Query<&mut Player>,
-    clients: Query<Entity, With<ConnectedClient>>,
-) {
-    let ClientId::Client(client_entity) = trigger.client_id else {
-        return;
-    };
-
-    if let Ok(parent) = clients.get(client_entity) {
-        if let Ok(mut player) = players.get_mut(parent) {
-            player.position = trigger.position;
-            info!(
-                "Updated position for player {} to {:?}",
-                player.id, player.position
-            );
-        }
-    }
-}
-
-// Client: Update visual positions based on replicated Player components
-fn client_update_visual_positions(
-    mut commands: Commands,
-    players: Query<&Player, Changed<Player>>,
-    mut visuals: Query<(Entity, &mut Transform, &VisualPlayer)>,
-) {
-    for player in &players {
-        let mut found = false;
-        for (_entity, mut transform, visual) in &mut visuals {
-            if visual.player_id == player.id {
-                transform.translation = player.position.extend(0.0);
-                found = true;
-                break;
-            }
-        }
-
-        if !found {
-            info!("Creating visual for player {}", player.id);
-            commands.spawn((
-                VisualPlayer {
-                    player_id: player.id,
-                },
-                Transform::from_translation(player.position.extend(0.0)),
-                Sprite::from_color(Color::WHITE, Vec2::splat(100.0)),
-            ));
-        }
-    }
-}
-
-#[derive(Component)]
-struct VisualPlayer {
-    player_id: u64,
 }
 
 fn disconnect_observer(
