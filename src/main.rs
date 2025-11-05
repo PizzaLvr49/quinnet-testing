@@ -39,16 +39,10 @@ enum Mode {
 }
 
 #[derive(Debug, Component, Serialize, Deserialize, Clone)]
-#[require(Replicated, Signature::of::<Player>())]
+#[require(Replicated)]
 struct Player {
     id: u64,
     position: Vec2,
-}
-
-impl std::hash::Hash for Player {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.id.hash(state);
-    }
 }
 
 #[derive(Debug, Component)]
@@ -174,6 +168,7 @@ fn handle_client_connections(query: Query<(Entity, &NetworkId), Added<ConnectedC
 fn handle_client_disconnections(
     mut removed: RemovedComponents<ConnectedClient>,
     network_ids: Query<&NetworkId>,
+    mut commands: Commands,
 ) {
     for entity in removed.read() {
         if let Ok(network_id) = network_ids.get(entity) {
@@ -185,6 +180,7 @@ fn handle_client_disconnections(
         } else {
             info!("Client disconnected - Entity: {:?}", entity);
         }
+        commands.entity(entity).despawn();
     }
 }
 
