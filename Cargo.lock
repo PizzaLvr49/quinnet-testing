@@ -1952,6 +1952,7 @@ dependencies = [
  "bevy_replicon_quinnet",
  "clap",
  "serde",
+ "shared",
 ]
 
 [[package]]

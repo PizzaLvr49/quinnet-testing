@@ -9,6 +9,7 @@ use bevy_quinnet::client::{
 use bevy_replicon::prelude::*;
 use bevy_replicon_quinnet::{ChannelsConfigurationExt, RepliconQuinnetPlugins};
 use clap::Parser;
+use shared::TestMessage;
 use std::net::{IpAddr, Ipv6Addr};
 
 #[derive(Resource, Parser)]
@@ -38,17 +39,23 @@ fn configure_plugins(app: &mut App) {
         .add_plugins((RepliconPlugins, RepliconQuinnetPlugins));
 }
 
-fn configure_replication(_app: &mut App) {}
+fn configure_replication(app: &mut App) {
+    app.add_server_event::<TestMessage>(Channel::Ordered)
+        .add_client_event::<TestMessage>(Channel::Ordered);
+}
 
 fn configure_systems(app: &mut App) {
     app.add_systems(Startup, setup_client);
     app.add_systems(Update, read_connected);
     app.add_systems(Last, disconnect_observer);
+
+    app.add_observer(on_message);
 }
 
-fn read_connected(mut reader: MessageReader<ConnectionEvent>) {
+fn read_connected(mut reader: MessageReader<ConnectionEvent>, mut commands: Commands) {
     for message in reader.read() {
-        info!("Client Id is: {}", message.client_id.unwrap())
+        info!("Client Id is: {}", message.client_id.unwrap());
+        commands.client_trigger(TestMessage("Hello Server".to_string()));
     }
 }
 
@@ -86,4 +93,8 @@ fn disconnect_observer(mut exit_events: MessageReader<AppExit>, mut client: ResM
             }
         }
     }
+}
+
+fn on_message(message: On<TestMessage>) {
+    info!("Got Echo: {}", message.0);
 }

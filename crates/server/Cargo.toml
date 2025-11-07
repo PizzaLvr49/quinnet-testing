@@ -15,8 +15,11 @@ clap = { workspace = true }
 bevy_enhanced_input = { workspace = true }
 bevy-panic-handler = { workspace = true }
 bevy_replicon = { workspace = true }
-shared = { workspace = true }
 ctrlc = { workspace = true }
+
+# Internal Crates
+
+shared = { workspace = true }
 
 [features]
 default = []

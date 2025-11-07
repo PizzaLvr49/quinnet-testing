@@ -8,6 +8,7 @@ use bevy_quinnet::server::{
 use bevy_replicon::prelude::*;
 use bevy_replicon_quinnet::{ChannelsConfigurationExt, RepliconQuinnetPlugins};
 use clap::Parser;
+use shared::TestMessage;
 use std::net::{IpAddr, Ipv6Addr};
 use std::sync::mpsc::{Receiver, channel};
 use std::sync::{Arc, Mutex};
@@ -49,12 +50,17 @@ fn configure_plugins(app: &mut App) {
         .add_plugins((RepliconPlugins, RepliconQuinnetPlugins));
 }
 
-fn configure_replication(_app: &mut App) {}
+fn configure_replication(app: &mut App) {
+    app.add_server_event::<TestMessage>(Channel::Ordered)
+        .add_client_event::<TestMessage>(Channel::Ordered);
+}
 
 fn configure_systems(app: &mut App) {
     app.add_systems(Startup, setup_server);
     app.add_systems(Update, (read_connected, check_shutdown));
     app.add_systems(Last, disconnect_observer);
+
+    app.add_observer(on_message);
 }
 
 fn check_shutdown(receiver: Res<ShutdownReceiver>, mut exit: MessageWriter<AppExit>) {
@@ -100,4 +106,12 @@ fn disconnect_observer(mut exit_events: MessageReader<AppExit>, mut server: ResM
             warn!("Failed to stop server endpoint: {:?}", e);
         }
     }
+}
+
+fn on_message(message: On<FromClient<TestMessage>>, mut commands: Commands) {
+    info!("Recieved: {}", message.0);
+    commands.server_trigger(ToClients {
+        mode: SendMode::Direct(message.client_id),
+        message: TestMessage(format!("Recieved: {}", message.0)),
+    });
 }

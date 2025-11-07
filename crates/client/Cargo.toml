@@ -16,6 +16,10 @@ bevy_enhanced_input = { workspace = true }
 bevy-panic-handler = { workspace = true }
 bevy_replicon = { workspace = true }
 
+# Internal Crates
+
+shared = { workspace = true }
+
 [features]
 default = []
 dev = ["bevy/dynamic_linking"]
