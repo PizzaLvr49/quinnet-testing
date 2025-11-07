@@ -222,12 +222,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "anyhow"
-version = "1.0.100"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a23eb6b1614318a8071c9b2521f36b424b2c83db5eb3a0fead4a6c0809af6e61"
-
-[[package]]
 name = "approx"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -556,36 +550,6 @@ dependencies = [
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
-]
-
-[[package]]
-name = "bevy_asset_loader"
-version = "0.24.0-rc.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e56df6f9fe3d4fd545e5f589425f335e0fad791d2a4fb88ba13ffab19d847ab7"
-dependencies = [
- "anyhow",
- "bevy_app",
- "bevy_asset",
- "bevy_asset_loader_derive",
- "bevy_ecs",
- "bevy_log",
- "bevy_platform",
- "bevy_reflect",
- "bevy_state",
- "bevy_utils",
- "path-slash",
-]
-
-[[package]]
-name = "bevy_asset_loader_derive"
-version = "0.24.0-rc.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "24f3cb09b9d0b15f5a5a914b737aee6ba3292e878dafd8f22a4e174fe06efb64"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
 ]
 
 [[package]]
@@ -1225,22 +1189,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "bevy_prng"
-version = "0.12.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e09a912cf0dd6c2d1a9a03dc9d6b022e3a93a2e78af0b149b5d84d6671d9296e"
-dependencies = [
- "bevy_ecs",
- "bevy_reflect",
- "rand_chacha",
- "rand_core",
- "rand_pcg",
- "rand_xoshiro",
- "serde",
- "wyrand",
-]
-
-[[package]]
 name = "bevy_ptr"
 version = "0.17.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1267,20 +1215,6 @@ dependencies = [
  "thiserror 1.0.69",
  "tokio",
  "tokio-util",
-]
-
-[[package]]
-name = "bevy_rand"
-version = "0.12.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0306893d65f832c5fbc86718d80602d80bea14f412c638b77f954a5bbea5a783"
-dependencies = [
- "bevy_app",
- "bevy_ecs",
- "bevy_prng",
- "bevy_reflect",
- "getrandom 0.3.4",
- "rand_core",
 ]
 
 [[package]]
@@ -2005,6 +1939,20 @@ name = "clap_lex"
 version = "0.7.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a1d728cc89cf3aee9ff92b05e62b19ee65a02b5702cff7d5a377e32c6ae29d8d"
+
+[[package]]
+name = "client"
+version = "0.1.0"
+dependencies = [
+ "bevy",
+ "bevy-panic-handler",
+ "bevy_enhanced_input",
+ "bevy_quinnet",
+ "bevy_replicon",
+ "bevy_replicon_quinnet",
+ "clap",
+ "serde",
+]
 
 [[package]]
 name = "cobs"
@@ -3473,9 +3421,9 @@ dependencies = [
 
 [[package]]
 name = "native-dialog"
-version = "0.9.2"
+version = "0.9.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1657b63bf0e60ee0eca886b5df70269240b6197b6ee46ec37da9a7d28d8e8e24"
+checksum = "454a816a8fed70bb5ba4ae90901073173dd5142f5df5ee503acde1ebcfaa4c4b"
 dependencies = [
  "ascii",
  "block2 0.6.2",
@@ -4011,9 +3959,9 @@ checksum = "04744f49eae99ab78e0d5c0b603ab218f515ea8cfe5a456d7629ad883a3b6e7d"
 
 [[package]]
 name = "orbclient"
-version = "0.3.48"
+version = "0.3.49"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ba0b26cec2e24f08ed8bb31519a9333140a6599b867dac464bb150bdb796fd43"
+checksum = "247ad146e19b9437f8604c21f8652423595cf710ad108af40e77d3ae6e96b827"
 dependencies = [
  "libredox",
 ]
@@ -4070,12 +4018,6 @@ name = "paste"
 version = "1.0.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "57c0d7b74b563b49d38dae00a0c37d4d6de9b432382b2892f0574ddcae73fd0a"
-
-[[package]]
-name = "path-slash"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1e91099d4268b0e11973f036e885d652fb0b21fedcf69738c627f94db6a44f42"
 
 [[package]]
 name = "pem"
@@ -4349,23 +4291,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "quinnet-testing"
-version = "0.1.0"
-dependencies = [
- "bevy",
- "bevy-panic-handler",
- "bevy_asset_loader",
- "bevy_enhanced_input",
- "bevy_quinnet",
- "bevy_rand",
- "bevy_replicon",
- "bevy_replicon_quinnet",
- "clap",
- "rand",
- "serde",
-]
-
-[[package]]
 name = "quote"
 version = "1.0.41"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4404,7 +4329,6 @@ checksum = "d3022b5f1df60f26e1ffddd6c66e8aa15de382ae63b3a0c1bfc0e4d3e3f325cb"
 dependencies = [
  "ppv-lite86",
  "rand_core",
- "serde",
 ]
 
 [[package]]
@@ -4414,7 +4338,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "99d9a13982dcf210057a8a78572b2217b667c3beacbf3a0d8b454f6f82837d38"
 dependencies = [
  "getrandom 0.3.4",
- "serde",
 ]
 
 [[package]]
@@ -4425,26 +4348,6 @@ checksum = "6a8615d50dcf34fa31f7ab52692afec947c4dd0ab803cc87cb3b0b4570ff7463"
 dependencies = [
  "num-traits",
  "rand",
-]
-
-[[package]]
-name = "rand_pcg"
-version = "0.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b48ac3f7ffaab7fac4d2376632268aa5f89abdb55f7ebf8f4d11fffccb2320f7"
-dependencies = [
- "rand_core",
- "serde",
-]
-
-[[package]]
-name = "rand_xoshiro"
-version = "0.7.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f703f4665700daf5512dcca5f43afa6af89f09db47fb56be587f80636bda2d41"
-dependencies = [
- "rand_core",
- "serde",
 ]
 
 [[package]]
@@ -4641,9 +4544,9 @@ dependencies = [
 
 [[package]]
 name = "rustls"
-version = "0.23.34"
+version = "0.23.35"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6a9586e9ee2b4f8fab52a0048ca7334d7024eef48e2cb9407e3497bb7cab7fa7"
+checksum = "533f54bc6a7d4f647e46ad909549eda97bf5afc1585190ef692b4286b198bd8f"
 dependencies = [
  "once_cell",
  "ring",
@@ -4903,12 +4806,42 @@ dependencies = [
 ]
 
 [[package]]
+name = "server"
+version = "0.1.0"
+dependencies = [
+ "bevy",
+ "bevy-panic-handler",
+ "bevy_enhanced_input",
+ "bevy_quinnet",
+ "bevy_replicon",
+ "bevy_replicon_quinnet",
+ "clap",
+ "ctrlc",
+ "serde",
+ "shared",
+]
+
+[[package]]
 name = "sharded-slab"
 version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f40ca3c46823713e0d4209592e8d6e826aa57e928f09752619fc696c499637f6"
 dependencies = [
  "lazy_static",
+]
+
+[[package]]
+name = "shared"
+version = "0.1.0"
+dependencies = [
+ "bevy",
+ "bevy-panic-handler",
+ "bevy_enhanced_input",
+ "bevy_quinnet",
+ "bevy_replicon",
+ "bevy_replicon_quinnet",
+ "clap",
+ "serde",
 ]
 
 [[package]]
@@ -5080,9 +5013,9 @@ dependencies = [
 
 [[package]]
 name = "syn"
-version = "2.0.108"
+version = "2.0.109"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "da58917d35242480a05c2897064da0a80589a2a0476c9a3f2fdc83b53502e917"
+checksum = "2f17c7e013e88258aa9543dcbe81aca68a667a9ac37cd69c9fbc07858bfe0e2f"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -6578,16 +6511,6 @@ name = "wit-bindgen"
 version = "0.46.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f17a85883d4e6d00e8a97c586de764dabcc06133f7f1d55dce5cdc070ad7fe59"
-
-[[package]]
-name = "wyrand"
-version = "0.3.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "15e0359b0b8d9cdef235a1fd4a8c5d02e4c9204e9fac861c14c229a8e803d1a6"
-dependencies = [
- "rand_core",
- "serde",
-]
 
 [[package]]
 name = "x11-dl"
