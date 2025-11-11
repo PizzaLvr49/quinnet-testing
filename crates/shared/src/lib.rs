@@ -5,10 +5,6 @@ use bevy_replicon::prelude::*;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Event)]
-/// Just a message for testing the api
-pub struct TestMessage(pub String);
-
-#[derive(Serialize, Deserialize, Debug, Event)]
 /// Client -> Server event telling server about the clients new position on that frame
 pub struct ClientMovementIntent(pub Vec2);
 
