@@ -1,3 +1,5 @@
+#![cfg_attr(not(feature = "dev"), windows_subsystem = "windows")]
+
 use bevy::prelude::*;
 use bevy_enhanced_input::prelude::*;
 use bevy_panic_handler::PanicHandlerBuilder;
