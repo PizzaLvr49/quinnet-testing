@@ -8,7 +8,7 @@ use bevy_quinnet::server::{
 use bevy_replicon::prelude::*;
 use bevy_replicon_quinnet::{ChannelsConfigurationExt, RepliconQuinnetPlugins};
 use clap::Parser;
-use shared::TestMessage;
+use shared::{ClientData, ClientMovementIntent, TestMessage};
 use std::net::{IpAddr, Ipv6Addr};
 use std::sync::mpsc::{Receiver, channel};
 use std::sync::{Arc, Mutex};
@@ -52,7 +52,9 @@ fn configure_plugins(app: &mut App) {
 
 fn configure_replication(app: &mut App) {
     app.add_server_event::<TestMessage>(Channel::Ordered)
-        .add_client_event::<TestMessage>(Channel::Ordered);
+        .add_client_event::<TestMessage>(Channel::Ordered)
+        .add_client_event::<ClientMovementIntent>(Channel::Unreliable)
+        .replicate::<ClientData>();
 }
 
 fn configure_systems(app: &mut App) {
@@ -61,6 +63,7 @@ fn configure_systems(app: &mut App) {
     app.add_systems(Last, disconnect_observer);
 
     app.add_observer(on_message);
+    app.add_observer(on_client_position);
 }
 
 fn check_shutdown(receiver: Res<ShutdownReceiver>, mut exit: MessageWriter<AppExit>) {
@@ -71,9 +74,28 @@ fn check_shutdown(receiver: Res<ShutdownReceiver>, mut exit: MessageWriter<AppEx
     }
 }
 
-fn read_connected(mut reader: MessageReader<ConnectionEvent>) {
+fn read_connected(mut reader: MessageReader<ConnectionEvent>, mut commands: Commands) {
     for message in reader.read() {
-        info!("Client connected: {}", message.id)
+        info!("Client connected: {}", message.id);
+        commands.spawn((
+            ClientData {
+                network_id: message.id,
+                pos: Vec2::ZERO,
+            },
+            Signature::of::<ClientData>(),
+        ));
+    }
+}
+
+fn on_client_position(
+    message: On<FromClient<ClientMovementIntent>>,
+    mut query: Query<&mut ClientData>,
+) {
+    let Some(entity) = message.client_id.entity() else {
+        return;
+    };
+    if let Ok(mut client) = query.get_mut(entity) {
+        client.pos = message.0; // Add position verification later
     }
 }
 
