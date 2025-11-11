@@ -74,13 +74,10 @@ fn check_shutdown(receiver: Res<ShutdownReceiver>, mut exit: MessageWriter<AppEx
 fn read_connected(mut reader: MessageReader<ConnectionEvent>, mut commands: Commands) {
     for message in reader.read() {
         info!("Client connected: {}", message.id);
-        commands.spawn((
-            ClientData {
-                network_id: message.id,
-                pos: Vec2::ZERO,
-            },
-            Signature::of::<ClientData>(),
-        ));
+        commands.spawn((ClientData {
+            network_id: message.id,
+            pos: Vec2::ZERO,
+        },));
     }
 }
 

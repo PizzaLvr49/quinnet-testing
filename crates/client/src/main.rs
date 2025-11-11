@@ -90,7 +90,6 @@ fn read_connected(mut reader: MessageReader<ConnectionEvent>, mut commands: Comm
                 network_id: client_id,
                 pos: Vec2::ZERO,
             },
-            Signature::of::<ClientData>(),
             Sprite::from_color(Color::linear_rgb(0.0, 1.0, 0.0), Vec2::splat(50.0)),
         ));
     }
@@ -124,10 +123,10 @@ fn handle_new_players(
     mut commands: Commands,
 ) {
     for entity in query.iter_mut() {
-        commands.entity(entity).insert((
-            Sprite::from_color(Color::linear_rgb(1.0, 0.0, 0.0), Vec2::splat(50.0)),
-            Signature::of::<ClientData>(),
-        ));
+        commands.entity(entity).insert((Sprite::from_color(
+            Color::linear_rgb(1.0, 0.0, 0.0),
+            Vec2::splat(50.0),
+        ),));
     }
 }
 
