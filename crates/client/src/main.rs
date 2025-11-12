@@ -1,7 +1,9 @@
 #![cfg_attr(not(feature = "dev"), windows_subsystem = "windows")]
 
 use bevy::prelude::*;
+use bevy_egui::EguiPlugin;
 use bevy_enhanced_input::prelude::*;
+use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use bevy_panic_handler::PanicHandlerBuilder;
 use bevy_quinnet::client::{
     ClientConnectionConfiguration, ClientConnectionConfigurationDefaultables, QuinnetClient,
@@ -45,7 +47,12 @@ fn main() {
 
 fn configure_plugins(app: &mut App) {
     app.add_plugins(DefaultPlugins)
-        .add_plugins((EnhancedInputPlugin, PanicHandlerBuilder::default().build()))
+        .add_plugins((
+            EnhancedInputPlugin,
+            PanicHandlerBuilder::default().build(),
+            EguiPlugin::default(),
+            WorldInspectorPlugin::default(),
+        ))
         .add_plugins((RepliconPlugins, RepliconQuinnetPlugins))
         .add_input_context::<LocalPlayer>();
 }
@@ -119,10 +126,15 @@ fn setup_client(
 }
 
 fn handle_new_players(
-    mut query: Query<Entity, (Added<ClientData>, Without<LocalPlayer>)>,
+    mut query: Query<Entity, Added<ClientData>>,
+    player_query: Query<&LocalPlayer>,
     mut commands: Commands,
 ) {
     for entity in query.iter_mut() {
+        if player_query.get(entity).is_ok() {
+            return;
+        }
+
         commands.entity(entity).insert((Sprite::from_color(
             Color::linear_rgb(1.0, 0.0, 0.0),
             Vec2::splat(50.0),

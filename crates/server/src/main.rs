@@ -2,10 +2,11 @@ use bevy::log::LogPlugin;
 use bevy::prelude::*;
 use bevy::state::app::StatesPlugin;
 use bevy_quinnet::server::{
-    ConnectionEvent, EndpointAddrConfiguration, QuinnetServer, ServerEndpointConfiguration,
+    EndpointAddrConfiguration, QuinnetServer, ServerEndpointConfiguration,
     ServerEndpointConfigurationDefaultables, certificate::CertificateRetrievalMode,
 };
 use bevy_replicon::prelude::*;
+use bevy_replicon::shared::backend::connected_client::NetworkId;
 use bevy_replicon_quinnet::{ChannelsConfigurationExt, RepliconQuinnetPlugins};
 use clap::Parser;
 use shared::{ClientData, ClientMovementIntent};
@@ -71,11 +72,14 @@ fn check_shutdown(receiver: Res<ShutdownReceiver>, mut exit: MessageWriter<AppEx
     }
 }
 
-fn read_connected(mut reader: MessageReader<ConnectionEvent>, mut commands: Commands) {
-    for message in reader.read() {
-        info!("Client connected: {}", message.id);
-        commands.spawn((ClientData {
-            network_id: message.id,
+fn read_connected(
+    mut query: Query<(Entity, &NetworkId), Added<AuthorizedClient>>,
+    mut commands: Commands,
+) {
+    for (entity, network_id) in query.iter_mut() {
+        info!("Client connected: {}", network_id.get());
+        commands.entity(entity).insert((ClientData {
+            network_id: network_id.get(),
             pos: Vec2::ZERO,
         },));
     }

@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 /// Client -> Server event telling server about the clients new position on that frame
 pub struct ClientMovementIntent(pub Vec2);
 
-#[derive(Serialize, Deserialize, Debug, Component)]
+#[derive(Serialize, Deserialize, Debug, Component, Reflect)]
 #[require(Replicated)]
 /// Replicated client data
 pub struct ClientData {
