@@ -78,6 +78,7 @@ fn read_connected(
 ) {
     for (entity, network_id) in query.iter_mut() {
         info!("Client connected: {}", network_id.get());
+
         commands.entity(entity).insert((ClientData {
             network_id: network_id.get(),
             pos: Vec2::ZERO,

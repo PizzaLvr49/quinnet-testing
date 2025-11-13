@@ -1667,6 +1667,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "bevy_transform_interpolation"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "284738382605476667bbe80cf0959f4dffb61adbdb0149e22e67f4dbf97a5bc2"
+dependencies = [
+ "bevy",
+]
+
+[[package]]
 name = "bevy_ui"
 version = "0.17.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2079,6 +2088,7 @@ dependencies = [
  "bevy_quinnet",
  "bevy_replicon",
  "bevy_replicon_quinnet",
+ "bevy_transform_interpolation",
  "clap",
  "serde",
  "shared",

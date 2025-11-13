@@ -12,6 +12,7 @@ use bevy_quinnet::client::{
 };
 use bevy_replicon::prelude::*;
 use bevy_replicon_quinnet::{ChannelsConfigurationExt, RepliconQuinnetPlugins};
+use bevy_transform_interpolation::prelude::{TransformInterpolation, TransformInterpolationPlugin};
 use clap::Parser;
 use shared::{ClientData, ClientMovementIntent};
 use std::net::{IpAddr, Ipv6Addr};
@@ -52,6 +53,7 @@ fn configure_plugins(app: &mut App) {
             PanicHandlerBuilder::default().build(),
             EguiPlugin::default(),
             WorldInspectorPlugin::default(),
+            TransformInterpolationPlugin::default(),
         ))
         .add_plugins((RepliconPlugins, RepliconQuinnetPlugins))
         .add_input_context::<LocalPlayer>();
@@ -64,10 +66,8 @@ fn configure_replication(app: &mut App) {
 
 fn configure_systems(app: &mut App) {
     app.add_systems(Startup, setup_client);
-    app.add_systems(
-        Update,
-        (read_connected, handle_new_players, handle_networked_players),
-    );
+    app.add_systems(Update, (read_connected, handle_new_players));
+    app.add_systems(FixedUpdate, handle_networked_players);
     app.add_systems(Last, disconnect_observer);
 
     app.add_observer(on_input);
@@ -135,10 +135,10 @@ fn handle_new_players(
             return;
         }
 
-        commands.entity(entity).insert((Sprite::from_color(
-            Color::linear_rgb(1.0, 0.0, 0.0),
-            Vec2::splat(50.0),
-        ),));
+        commands.entity(entity).insert((
+            Sprite::from_color(Color::linear_rgb(1.0, 0.0, 0.0), Vec2::splat(50.0)),
+            TransformInterpolation,
+        ));
     }
 }
 

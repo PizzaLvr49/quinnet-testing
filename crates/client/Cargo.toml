@@ -17,6 +17,7 @@ bevy-panic-handler = { workspace = true }
 bevy_replicon = { workspace = true }
 bevy-inspector-egui = { workspace = true }
 bevy_egui = { workspace = true }
+bevy_transform_interpolation = { workspace = true }
 
 # Internal Crates
 
