@@ -14,7 +14,7 @@ use bevy_replicon::prelude::*;
 use bevy_replicon_quinnet::{ChannelsConfigurationExt, RepliconQuinnetPlugins};
 use bevy_transform_interpolation::prelude::{TransformInterpolation, TransformInterpolationPlugin};
 use clap::Parser;
-use shared::{ClientData, ClientMovementIntent};
+use shared::{ClientMovementIntent, LocalPlayer, Player};
 use std::net::{IpAddr, Ipv6Addr};
 
 #[derive(Resource, Parser)]
@@ -24,10 +24,6 @@ struct Args {
     #[arg(short, long, default_value_t = 5000)]
     port: u16,
 }
-
-#[derive(Component)]
-#[require(Transform)]
-struct LocalPlayer;
 
 #[derive(InputAction)]
 #[action_output(Vec2)]
@@ -61,13 +57,14 @@ fn configure_plugins(app: &mut App) {
 
 fn configure_replication(app: &mut App) {
     app.add_client_event::<ClientMovementIntent>(Channel::Unreliable)
-        .replicate::<ClientData>();
+        .replicate::<Transform>()
+        .replicate::<Player>();
 }
 
 fn configure_systems(app: &mut App) {
     app.add_systems(Startup, setup_client);
     app.add_systems(Update, (read_connected, handle_new_players));
-    app.add_systems(FixedUpdate, handle_networked_players);
+    app.add_systems(FixedUpdate, send_player_position);
     app.add_systems(Last, disconnect_observer);
 
     app.add_observer(on_input);
@@ -78,29 +75,12 @@ fn read_connected(mut reader: MessageReader<ConnectionEvent>, mut commands: Comm
         let client_id = message.client_id.unwrap();
         info!("Client Id is: {}", client_id);
 
-        commands.spawn((
-            LocalPlayer,
-            actions!(
-                LocalPlayer[(
-                    Action::<PlayerMovement>::new(),
-                    Scale::splat(100.0),
-                    DeadZone::default(),
-                    SmoothNudge::new(32.0),
-                    Bindings::spawn((
-                        Cardinal::wasd_keys(),
-                        Cardinal::arrows(),
-                        Axial::left_stick(),
-                    ))
-                )]
-            ),
-            ClientData {
-                network_id: client_id,
-                pos: Vec2::ZERO,
-            },
-            Sprite::from_color(Color::linear_rgb(0.0, 1.0, 0.0), Vec2::splat(50.0)),
-        ));
+        commands.insert_resource(MyClientId(client_id));
     }
 }
+
+#[derive(Resource)]
+struct MyClientId(u64);
 
 fn setup_client(
     args: Res<Args>,
@@ -126,35 +106,55 @@ fn setup_client(
 }
 
 fn handle_new_players(
-    mut query: Query<Entity, Added<ClientData>>,
-    player_query: Query<&LocalPlayer>,
+    mut query: Query<(Entity, &Player), Added<Player>>,
+    client_id: Option<Res<MyClientId>>,
     mut commands: Commands,
 ) {
-    for entity in query.iter_mut() {
-        if player_query.get(entity).is_ok() {
-            return;
-        }
+    let Some(client_id) = client_id else {
+        return;
+    };
 
-        commands.entity(entity).insert((
-            Sprite::from_color(Color::linear_rgb(1.0, 0.0, 0.0), Vec2::splat(50.0)),
-            TransformInterpolation,
-        ));
+    for (entity, player) in query.iter_mut() {
+        if player.network_id == client_id.0 {
+            info!("Adding local player controls to entity {:?}", entity);
+            commands.entity(entity).insert((
+                LocalPlayer,
+                actions!(
+                    LocalPlayer[(
+                        Action::<PlayerMovement>::new(),
+                        Scale::splat(100.0),
+                        DeadZone::default(),
+                        SmoothNudge::new(32.0),
+                        Bindings::spawn((
+                            Cardinal::wasd_keys(),
+                            Cardinal::arrows(),
+                            Axial::left_stick(),
+                        ))
+                    )]
+                ),
+                Sprite::from_color(Color::linear_rgb(0.0, 1.0, 0.0), Vec2::splat(50.0)),
+            ));
+        } else {
+            info!("Adding remote player visuals to entity {:?}", entity);
+            commands.entity(entity).insert((
+                Sprite::from_color(Color::linear_rgb(1.0, 0.0, 0.0), Vec2::splat(50.0)),
+                TransformInterpolation,
+            ));
+        }
     }
 }
 
-fn handle_networked_players(mut query: Query<(&mut Transform, &ClientData), Without<LocalPlayer>>) {
-    for (mut transform, client_data) in query.iter_mut() {
-        transform.translation = (client_data.pos, 0.0).into();
+fn send_player_position(query: Query<&Transform, With<LocalPlayer>>, mut commands: Commands) {
+    for transform in query.iter() {
+        commands.client_trigger(ClientMovementIntent(transform.translation.xy()));
     }
 }
 
 fn on_input(
     movement: On<Fire<PlayerMovement>>,
     mut player_transform: Single<&mut Transform, With<LocalPlayer>>,
-    mut commands: Commands,
 ) {
     player_transform.translation += Vec3::from((movement.value, 0.0));
-    commands.client_trigger(ClientMovementIntent(player_transform.translation.xy()));
 }
 
 fn disconnect_observer(mut exit_events: MessageReader<AppExit>, mut client: ResMut<QuinnetClient>) {

@@ -9,7 +9,7 @@ use bevy_replicon::prelude::*;
 use bevy_replicon::shared::backend::connected_client::NetworkId;
 use bevy_replicon_quinnet::{ChannelsConfigurationExt, RepliconQuinnetPlugins};
 use clap::Parser;
-use shared::{ClientData, ClientMovementIntent};
+use shared::{ClientMovementIntent, Player};
 use std::net::{IpAddr, Ipv6Addr};
 use std::sync::mpsc::{Receiver, channel};
 use std::sync::{Arc, Mutex};
@@ -53,7 +53,8 @@ fn configure_plugins(app: &mut App) {
 
 fn configure_replication(app: &mut App) {
     app.add_client_event::<ClientMovementIntent>(Channel::Unreliable)
-        .replicate::<ClientData>();
+        .replicate::<Transform>()
+        .replicate::<Player>();
 }
 
 fn configure_systems(app: &mut App) {
@@ -79,22 +80,24 @@ fn read_connected(
     for (entity, network_id) in query.iter_mut() {
         info!("Client connected: {}", network_id.get());
 
-        commands.entity(entity).insert((ClientData {
-            network_id: network_id.get(),
-            pos: Vec2::ZERO,
-        },));
+        commands.entity(entity).insert((
+            Player {
+                network_id: network_id.get(),
+            },
+            Transform::default(),
+        ));
     }
 }
 
 fn on_client_position(
     message: On<FromClient<ClientMovementIntent>>,
-    mut query: Query<&mut ClientData>,
+    mut query: Query<&mut Transform>,
 ) {
     let Some(entity) = message.client_id.entity() else {
         return;
     };
-    if let Ok(mut client) = query.get_mut(entity) {
-        client.pos = message.0; // Add position verification later
+    if let Ok(mut transform) = query.get_mut(entity) {
+        transform.translation = (message.0, 0.0).into();
     }
 }
 
