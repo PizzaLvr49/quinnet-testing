@@ -144,10 +144,8 @@ fn handle_new_players(
     }
 }
 
-fn send_player_position(query: Query<&Transform, With<LocalPlayer>>, mut commands: Commands) {
-    for transform in query.iter() {
-        commands.client_trigger(ClientMovementIntent(transform.translation.xy()));
-    }
+fn send_player_position(transform: Single<&Transform, With<LocalPlayer>>, mut commands: Commands) {
+    commands.client_trigger(ClientMovementIntent(transform.translation.xy()));
 }
 
 fn on_input(
