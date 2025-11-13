@@ -1,3 +1,4 @@
+use bevy::app::ScheduleRunnerPlugin;
 use bevy::log::LogPlugin;
 use bevy::prelude::*;
 use bevy::state::app::StatesPlugin;
@@ -13,6 +14,7 @@ use shared::{ClientMovementIntent, Player};
 use std::net::{IpAddr, Ipv6Addr};
 use std::sync::mpsc::{Receiver, channel};
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 #[derive(Resource, Parser)]
 struct Args {
@@ -21,6 +23,9 @@ struct Args {
     #[arg(short, long, default_value_t = 5000)]
     port: u16,
 }
+
+#[derive(Component, Default)]
+struct MovementInput(Vec2);
 
 #[derive(Resource)]
 struct ShutdownReceiver(Arc<Mutex<Receiver<()>>>);
@@ -46,9 +51,13 @@ fn main() {
 }
 
 fn configure_plugins(app: &mut App) {
-    app.add_plugins(MinimalPlugins)
-        .add_plugins((LogPlugin::default(), StatesPlugin))
-        .add_plugins((RepliconPlugins, RepliconQuinnetPlugins));
+    app.add_plugins(
+        MinimalPlugins.set(ScheduleRunnerPlugin::run_loop(Duration::from_secs_f64(
+            1.0 / 64.0,
+        ))),
+    )
+    .add_plugins((LogPlugin::default(), StatesPlugin))
+    .add_plugins((RepliconPlugins, RepliconQuinnetPlugins));
 }
 
 fn configure_replication(app: &mut App) {
@@ -59,7 +68,7 @@ fn configure_replication(app: &mut App) {
 
 fn configure_systems(app: &mut App) {
     app.add_systems(Startup, setup_server);
-    app.add_systems(Update, (read_connected, check_shutdown));
+    app.add_systems(Update, (read_connected, check_shutdown, apply_movement));
     app.add_systems(Last, disconnect_observer);
 
     app.add_observer(on_client_position);
@@ -85,19 +94,25 @@ fn read_connected(
                 network_id: network_id.get(),
             },
             Transform::default(),
+            MovementInput::default(),
         ));
     }
 }
 
 fn on_client_position(
     message: On<FromClient<ClientMovementIntent>>,
-    mut query: Query<&mut Transform>,
+    mut query: Query<&mut MovementInput>,
 ) {
-    let Some(entity) = message.client_id.entity() else {
-        return;
-    };
-    if let Ok(mut transform) = query.get_mut(entity) {
-        transform.translation = (message.0, 0.0).into();
+    if let Some(entity) = message.client_id.entity() {
+        if let Ok(mut input) = query.get_mut(entity) {
+            input.0 = message.0;
+        }
+    }
+}
+
+fn apply_movement(mut query: Query<(&MovementInput, &mut Transform)>, time: Res<Time>) {
+    for (input, mut transform) in query.iter_mut() {
+        transform.translation += Vec3::from((input.0, 0.0)) * time.delta_secs() * 100.0;
     }
 }
 

@@ -64,10 +64,10 @@ fn configure_replication(app: &mut App) {
 fn configure_systems(app: &mut App) {
     app.add_systems(Startup, setup_client);
     app.add_systems(Update, (read_connected, handle_new_players));
-    app.add_systems(FixedUpdate, send_player_position);
     app.add_systems(Last, disconnect_observer);
 
     app.add_observer(on_input);
+    app.add_observer(on_input_ended);
 }
 
 fn read_connected(mut reader: MessageReader<ConnectionEvent>, mut commands: Commands) {
@@ -122,9 +122,7 @@ fn handle_new_players(
                 actions!(
                     LocalPlayer[(
                         Action::<PlayerMovement>::new(),
-                        Scale::splat(100.0),
                         DeadZone::default(),
-                        SmoothNudge::new(32.0),
                         Bindings::spawn((
                             Cardinal::wasd_keys(),
                             Cardinal::arrows(),
@@ -144,15 +142,12 @@ fn handle_new_players(
     }
 }
 
-fn send_player_position(transform: Single<&Transform, With<LocalPlayer>>, mut commands: Commands) {
-    commands.client_trigger(ClientMovementIntent(transform.translation.xy()));
+fn on_input(movement: On<Fire<PlayerMovement>>, mut commands: Commands) {
+    commands.client_trigger(ClientMovementIntent(movement.value));
 }
 
-fn on_input(
-    movement: On<Fire<PlayerMovement>>,
-    mut player_transform: Single<&mut Transform, With<LocalPlayer>>,
-) {
-    player_transform.translation += Vec3::from((movement.value, 0.0));
+fn on_input_ended(movement: On<Complete<PlayerMovement>>, mut commands: Commands) {
+    commands.client_trigger(ClientMovementIntent(movement.value));
 }
 
 fn disconnect_observer(mut exit_events: MessageReader<AppExit>, mut client: ResMut<QuinnetClient>) {
